@@ -109,7 +109,11 @@ def run_flaresolverr_server():
             
         flaresolverr_service.test_browser_installation = safe_test_browser
 
-        # Setup standard Python logging to file
+        # Setup standard Python logging to file.
+        # This implementation replaces Kodi's native xbmc.log for the Python sub-process,
+        # providing an independent, rotating log file (max 5MB) at a user-defined path.
+        # This prevents Kodi's main `kodi.log` from being flooded by verbose server output
+        # and allows users to access logs directly via standard text files or WebTail UI.
         enable_log = ADDON.getSettingBool('enable_log')
         try:
             log_level_str = ADDON.getSetting('log_level')

@@ -7,6 +7,8 @@ By running FlareSolverr directly on your device, Kodi add-ons (such as Megacloud
 ## Features
 - **Local Proxy:** Runs entirely on-device, listening locally on port `8191` (configurable in settings).
 - **Auto-Browser Provisioning:** Includes a smart downloader that automatically fetches and extracts a headless version of Chromium/Chrome if one isn't natively available on your system or within your Flatpak sandbox.
+- **Kodi Flatpak Isolation Support:** The internal `undetected_chromedriver` implementation is heavily patched (`use_subprocess=True`) to prevent the embedded Python interpreter from accidentally attempting to fork `kodi.bin` inside restricted Flatpak and Linux environments, preventing infinite hangs.
+- **Unified Logging & UI:** Safely unhooks FlareSolverr's standard console output to prevent flooding the main Kodi log. Logging is routed to a custom, rotating `.log` file viewable via the built-in WebTail HTTP endpoint (`http://127.0.0.1:8191/logs`).
 - **Zombie Process Management:** Safely destroys all active Selenium WebDriver instances when the Kodi add-on stops, preventing memory leaks and background hangs.
 - **Upstream Auto-Sync:** Fully automated CI/CD pipeline synchronizes the core application source with the official upstream repository on GitHub every 24 hours.
 
@@ -21,6 +23,7 @@ You can access the add-on settings via **Add-ons** > **My add-ons** > **Services
 - **Host:** Default is `0.0.0.0` (accessible to your local network). You can restrict it to `127.0.0.1`.
 - **Port:** Default is `8191`.
 - **Headless Mode:** Enabled by default. Keeps the Chrome browser invisible.
+- **Logging Settings:** Configure custom file output paths and verbosity. *(Note: Advanced settings are mapped to visibility `Level 0` so they remain accessible regardless of the user's Kodi UI settings level).*
 
 ## How it Works
 When enabled, the add-on starts the standard FlareSolverr Waitress HTTP server as a background `xbmc.service`.
