@@ -61,7 +61,18 @@ def setup_flaresolverr_env():
     os.environ["HOST"] = host
     os.environ["PORT"] = port
     os.environ["HEADLESS"] = "true" if headless else "false"
-    os.environ["LOG_LEVEL"] = "info"
+    
+    # Read logging settings
+    enable_log = ADDON.getSettingBool('enable_log')
+    try:
+        log_level_str = ADDON.getSetting('log_level')
+        log_level_setting = int(log_level_str) if log_level_str else 1
+    except ValueError:
+        log_level_setting = 1
+    
+    level_map = {0: "debug", 1: "info", 2: "warning", 3: "error"}
+    log_level = level_map.get(log_level_setting, "info")
+    os.environ["LOG_LEVEL"] = log_level if enable_log else "error"
     
     import certifi
     os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
@@ -86,7 +97,36 @@ def run_flaresolverr_server():
             
         flaresolverr_service.test_browser_installation = safe_test_browser
 
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
+        # Setup standard Python logging to file
+        enable_log = ADDON.getSettingBool('enable_log')
+        try:
+            log_level_str = ADDON.getSetting('log_level')
+            log_level_setting = int(log_level_str) if log_level_str else 1
+        except ValueError:
+            log_level_setting = 1
+        
+        py_level_map = {0: logging.DEBUG, 1: logging.INFO, 2: logging.WARNING, 3: logging.ERROR}
+        py_log_level = py_level_map.get(log_level_setting, logging.INFO)
+        
+        handlers = []
+        if enable_log:
+            from logging.handlers import RotatingFileHandler
+            log_path = ADDON.getSetting('log_path') or ""
+            if not log_path or not log_path.strip():
+                log_path = xbmcvfs.translatePath(ADDON.getAddonInfo('profile'))
+            else:
+                log_path = xbmcvfs.translatePath(log_path)
+            
+            os.makedirs(log_path, exist_ok=True)
+            log_file = os.path.join(log_path, 'flaresolverr.log')
+            
+            file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=1, encoding='utf-8')
+            handlers.append(file_handler)
+            xbmc.log(f"[FlareSolverr] Custom logging enabled -> {log_file}", xbmc.LOGINFO)
+        else:
+            handlers.append(logging.NullHandler())
+
+        logging.basicConfig(level=py_log_level, format='%(asctime)s %(levelname)-8s %(message)s', handlers=handlers)
         logging.getLogger('urllib3').setLevel(logging.ERROR)
         logging.getLogger('selenium.webdriver.remote.remote_connection').setLevel(logging.WARNING)
         logging.getLogger('undetected_chromedriver').setLevel(logging.WARNING)
@@ -99,6 +139,42 @@ def run_flaresolverr_server():
         prometheus_plugin.setup()
         app.install(prometheus_plugin.prometheus_plugin)
 
+        # Add custom log viewer endpoints
+        @app.route('/logs')
+        def serve_logs_page():
+            from bottle import static_file
+            import xbmcaddon
+            addon_path = xbmcaddon.Addon('script.service.flaresolverr').getAddonInfo('path')
+            html_path = os.path.join(addon_path, "resources", "templates", "webtail.html")
+            return static_file("webtail.html", root=os.path.dirname(html_path))
+            
+        @app.route('/logs/tail')
+        def serve_logs_tail():
+            from bottle import request, response, HTTPError
+            import xbmcaddon
+            import xbmcvfs
+            from resources.lib.logreader import LogReader
+            
+            addon = xbmcaddon.Addon('script.service.flaresolverr')
+            log_path_setting = addon.getSetting('log_path') or ""
+            if not log_path_setting or not log_path_setting.strip():
+                log_path_setting = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+            else:
+                log_path_setting = xbmcvfs.translatePath(log_path_setting)
+                
+            flaresolverr_log = os.path.join(log_path_setting, 'flaresolverr.log')
+            if not os.path.exists(flaresolverr_log):
+                raise HTTPError(404, "Log file not found. Ensure logging is enabled.")
+                
+            offset = int(request.query.offset or 0)
+            reader = LogReader(flaresolverr_log)
+            reader.set_offset(offset)
+            content = reader.tail().encode('utf-8')
+            
+            response.content_type = 'text/plain'
+            response.set_header('X-Seek-Offset', str(reader.get_offset()))
+            return content
+
         class WaitressServerPoll(ServerAdapter):
             def run(self, handler):
                 from waitress import serve
@@ -107,20 +183,22 @@ def run_flaresolverr_server():
         server_host = os.environ["HOST"]
         server_port = int(os.environ["PORT"])
         
-        xbmc.log(f"Starting FlareSolverr server on {server_host}:{server_port}", xbmc.LOGINFO)
+        logging.info(f"Starting FlareSolverr server on {server_host}:{server_port}")
         run(app, host=server_host, port=server_port, quiet=True, server=WaitressServerPoll)
     except Exception as e:
+        logging.error(f"FlareSolverr Server Error: {str(e)}")
         xbmc.log(f"FlareSolverr Server Error: {str(e)}", xbmc.LOGFATAL)
 
 def cleanup_sessions():
     try:
         import flaresolverr_service
+        import logging
         session_ids = list(flaresolverr_service.SESSIONS_STORAGE.session_ids())
-        xbmc.log(f"Cleaning up {len(session_ids)} FlareSolverr sessions...", xbmc.LOGINFO)
+        logging.info(f"Cleaning up {len(session_ids)} FlareSolverr sessions...")
         for sid in session_ids:
             flaresolverr_service.SESSIONS_STORAGE.destroy(sid)
     except Exception as e:
-        xbmc.log(f"Error cleaning up FlareSolverr sessions: {str(e)}", xbmc.LOGERROR)
+        logging.error(f"Error cleaning up FlareSolverr sessions: {str(e)}")
 
 if __name__ == '__main__':
     monitor = xbmc.Monitor()
@@ -135,5 +213,6 @@ if __name__ == '__main__':
         if monitor.waitForAbort(1):
             break
             
-    xbmc.log("FlareSolverr Service stopping...", xbmc.LOGINFO)
+    import logging
+    logging.info("FlareSolverr Service stopping...")
     cleanup_sessions()

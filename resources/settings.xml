@@ -5,4 +5,9 @@
         <setting id="port" type="number" label="30002" default="8191"/>
         <setting id="headless" type="bool" label="30003" default="true"/>
     </category>
+    <category label="Advanced">
+        <setting id="enable_log" type="bool" label="Enable Custom Logging" default="true"/>
+        <setting id="log_level" type="select" label="Log Level" default="1" entries="Debug|Info|Warning|Error"/>
+        <setting id="log_path" type="text" label="Log Folder" default="special://profile/addon_data/script.service.flaresolverr/"/>
+    </category>
 </settings>
