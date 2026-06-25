@@ -26,7 +26,7 @@ def are_dirs_identical(dir1, dir2):
     if dcmp.left_only or dcmp.right_only or dcmp.diff_files or dcmp.funny_files:
         return False
     for sub_dcmp in dcmp.subdirs.values():
-        if not are_dirs_identical(os.path.join(dir1, sub_dcmp.left), os.path.join(dir2, sub_dcmp.right)):
+        if not are_dirs_identical(sub_dcmp.left, sub_dcmp.right):
             return False
     return True
 
