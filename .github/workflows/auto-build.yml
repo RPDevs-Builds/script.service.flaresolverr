@@ -1,0 +1,77 @@
+name: FlareSolverr Auto-Sync & Build
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout addon repository
+        uses: actions/checkout@v4
+
+      - name: Checkout FlareSolverr upstream
+        uses: actions/checkout@v4
+        with:
+          repository: 'FlareSolverr/FlareSolverr'
+          path: 'upstream'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Run sync script
+        id: sync
+        run: |
+          set +e
+          python tools/sync_upstream.py upstream .
+          exit_code=$?
+          set -e
+          if [ $exit_code -eq 0 ]; then
+            echo "changes_made=true" >> $GITHUB_OUTPUT
+          elif [ $exit_code -eq 2 ]; then
+            echo "changes_made=false" >> $GITHUB_OUTPUT
+          else
+            echo "Sync script failed!"
+            exit 1
+          fi
+
+      - name: Configure Git
+        if: steps.sync.outputs.changes_made == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit changes
+        if: steps.sync.outputs.changes_made == 'true'
+        run: |
+          git add resources/lib/flaresolverr addon.xml
+          git commit -m "Auto-sync with official FlareSolverr source"
+          git push
+
+      - name: Build Zip Release
+        id: build_zip
+        run: |
+          python tools/build_addon.py
+          # Output is handled by the python script (::set-output)
+
+      - name: Create Release
+        if: steps.sync.outputs.changes_made == 'true' || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.build_zip.outputs.version }}
+          name: v${{ steps.build_zip.outputs.version }}
+          files: ${{ steps.build_zip.outputs.zip_path }}
+          body: "Automated release synced with official FlareSolverr source."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
