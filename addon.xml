@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<addon id="script.service.flaresolverr" name="FlareSolverr Service" provider-name="RPDev" version="1.0.0">
+<?xml version='1.0' encoding='UTF-8'?>
+<addon id="script.service.flaresolverr" name="FlareSolverr Service" provider-name="RPDev" version="1.0.1">
     <requires>
-        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="xbmc.python" version="3.0.0" />
     </requires>
-    <extension point="xbmc.service" library="service.py"/>
+    <extension point="xbmc.service" library="service.py" />
     <extension point="xbmc.addon.metadata">
         <platform>all</platform>
         <license>MIT</license>

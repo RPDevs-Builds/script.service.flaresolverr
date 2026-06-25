@@ -1,7 +1,0 @@
-{
-  "name": "flaresolverr",
-  "version": "3.3.17",
-  "description": "Proxy server to bypass Cloudflare protection",
-  "main": "flaresolverr.py",
-  "author": "FlareSolverr"
-}
