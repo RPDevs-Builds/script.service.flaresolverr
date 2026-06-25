@@ -18,7 +18,11 @@ import time
 from urllib.request import urlopen
 from urllib.request import urlretrieve
 import zipfile
-from multiprocessing import Lock
+try:
+    from multiprocessing import Lock
+except (ImportError, OSError):
+    from threading import Lock
+
 
 logger = logging.getLogger(__name__)
 

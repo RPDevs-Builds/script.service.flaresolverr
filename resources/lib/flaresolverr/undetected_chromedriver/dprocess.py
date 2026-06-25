@@ -23,27 +23,43 @@ def start_detached(executable, *args):
     :return: pid of the grandchild process
     """
 
-    # create pipe
-    reader, writer = multiprocessing.Pipe(False)
+    try:
+        # create pipe
+        reader, writer = multiprocessing.Pipe(False)
 
-    # do not keep reference
-    process = multiprocessing.Process(
-        target=_start_detached,
-        args=(executable, *args),
-        kwargs={"writer": writer},
-        daemon=True,
-    )
-    process.start()
-    process.join()
-    # receive pid from pipe
-    pid = reader.recv()
-    REGISTERED.append(pid)
-    # close pipes
-    writer.close()
-    reader.close()
-    process.close()
+        # do not keep reference
+        process = multiprocessing.Process(
+            target=_start_detached,
+            args=(executable, *args),
+            kwargs={"writer": writer},
+            daemon=True,
+        )
+        process.start()
+        process.join()
+        # receive pid from pipe
+        pid = reader.recv()
+        REGISTERED.append(pid)
+        # close pipes
+        writer.close()
+        reader.close()
+        process.close()
 
-    return pid
+        return pid
+    except (ImportError, OSError, AttributeError) as e:
+        logging.getLogger(__name__).warning(
+            "undetected_chromedriver: multiprocessing failed (%s), falling back to direct Popen", e
+        )
+        # fallback to starting process directly (e.g. on Android)
+        kwargs = {}
+        if platform.system() == "Windows":
+            kwargs.update(creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+        else:
+            kwargs.update(start_new_session=True)
+
+        p = Popen([executable, *args], stdin=PIPE, stdout=PIPE, stderr=PIPE, **kwargs)
+        REGISTERED.append(p.pid)
+        return p.pid
+
 
 
 def _start_detached(executable, *args, writer: multiprocessing.Pipe = None):
