@@ -1,0 +1,19 @@
+# Kodi addon strings
+msgid ""
+msgstr ""
+
+msgctxt "#30000"
+msgid "General"
+msgstr ""
+
+msgctxt "#30001"
+msgid "Host"
+msgstr ""
+
+msgctxt "#30002"
+msgid "Port"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Headless Browser"
+msgstr ""

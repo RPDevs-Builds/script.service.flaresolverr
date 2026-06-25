@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="script.service.flaresolverr" name="FlareSolverr Service" provider-name="Antigravity" version="1.0.0">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+    </requires>
+    <extension point="xbmc.service" library="service.py"/>
+    <extension point="xbmc.addon.metadata">
+        <platform>all</platform>
+        <license>MIT</license>
+        <summary lang="en_GB">Local FlareSolverr service for Kodi.</summary>
+        <description lang="en_GB">Runs a headless local FlareSolverr proxy to solve Cloudflare and other challenges natively inside Kodi.</description>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+    </extension>
+</addon>
