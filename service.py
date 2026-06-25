@@ -142,9 +142,12 @@ def run_flaresolverr_server():
         # Add custom log viewer endpoints
         @app.route('/logs')
         def serve_logs_page():
-            from bottle import static_file
+            from bottle import static_file, HTTPError
             import xbmcaddon
-            addon_path = xbmcaddon.Addon('script.service.flaresolverr').getAddonInfo('path')
+            addon = xbmcaddon.Addon('script.service.flaresolverr')
+            if not addon.getSettingBool('enable_remote_log_viewer'):
+                raise HTTPError(403, "Remote log viewer is disabled.")
+            addon_path = addon.getAddonInfo('path')
             html_path = os.path.join(addon_path, "resources", "templates", "webtail.html")
             return static_file("webtail.html", root=os.path.dirname(html_path))
             
@@ -156,6 +159,9 @@ def run_flaresolverr_server():
             from resources.lib.logreader import LogReader
             
             addon = xbmcaddon.Addon('script.service.flaresolverr')
+            if not addon.getSettingBool('enable_remote_log_viewer'):
+                raise HTTPError(403, "Remote log viewer is disabled.")
+                
             log_path_setting = addon.getSetting('log_path') or ""
             if not log_path_setting or not log_path_setting.strip():
                 log_path_setting = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
