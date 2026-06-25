@@ -31,9 +31,6 @@
                     <level>0</level>
                     <default>false</default>
                     <control type="toggle"/>
-                    <dependencies>
-                        <dependency type="enable" setting="enable_log" expression="true"/>
-                    </dependencies>
                 </setting>
                 <setting id="log_level" type="integer" label="Log Level">
                     <level>0</level>
@@ -47,9 +44,6 @@
                         </options>
                     </constraints>
                     <control type="list" format="integer"/>
-                    <dependencies>
-                        <dependency type="enable" setting="enable_log" expression="true"/>
-                    </dependencies>
                 </setting>
                 <setting id="log_path" type="path" label="Log Folder">
                     <level>1</level>
