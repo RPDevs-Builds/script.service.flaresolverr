@@ -3,6 +3,23 @@
     <section id="script.service.flaresolverr">
         <category id="1" label="30000">
             <group id="1">
+                <setting id="server_mode" type="integer" label="30017">
+                    <level>0</level>
+                    <default>0</default>
+                    <constraints>
+                        <options>
+                            <option label="30018">0</option>
+                            <option label="30019">1</option>
+                            <option label="30020">2</option>
+                        </options>
+                    </constraints>
+                    <control type="list" format="integer"/>
+                </setting>
+                <setting id="remote_url" type="string" label="30021">
+                    <level>0</level>
+                    <default></default>
+                    <control type="edit" format="string"/>
+                </setting>
                 <setting id="host" type="string" label="30001">
                     <level>0</level>
                     <default>0.0.0.0</default>

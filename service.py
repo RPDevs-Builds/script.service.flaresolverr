@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 import threading
 import time
 import urllib.request
@@ -17,6 +18,60 @@ PROFILE_PATH = xbmcvfs.translatePath(ADDON.getAddonInfo('profile'))
 
 sys.path.insert(0, FLARESOLVERR_PATH)
 sys.path.insert(0, LIB_PATH)
+
+
+# ---------------------------------------------------------------------------
+# Platform detection
+# ---------------------------------------------------------------------------
+
+def is_android():
+    """
+    Detect whether we are running on Android (e.g. NVIDIA Shield TV).
+    Multiple heuristics are combined because Kodi's embedded Python
+    reports sys.platform as 'linux' even on Android.
+    """
+    # Python 3.7+ exposes this on Android
+    if hasattr(sys, 'getandroidapilevel'):
+        return True
+    # Android system fingerprint
+    if os.path.exists('/system/build.prop'):
+        return True
+    # Kodi on Android stores data here
+    if os.path.exists('/data/user/0/org.xbmc.kodi'):
+        return True
+    # Check platform string
+    if 'ANDROID' in platform.platform().upper():
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# __pycache__ buster — ensures stale bytecache from a previous version
+# does not shadow updated .py files after an addon upgrade.
+# ---------------------------------------------------------------------------
+
+def purge_pycache(root_dir):
+    """
+    Recursively delete all __pycache__ directories under root_dir.
+    This is called once at service startup to guarantee fresh imports.
+    """
+    count = 0
+    for dirpath, dirnames, _filenames in os.walk(root_dir):
+        for d in dirnames:
+            if d == '__pycache__':
+                cache_path = os.path.join(dirpath, d)
+                try:
+                    shutil.rmtree(cache_path)
+                    count += 1
+                except Exception:
+                    pass
+    if count:
+        xbmc.log(f"[FlareSolverr] Purged {count} __pycache__ directories", xbmc.LOGINFO)
+
+
+# ---------------------------------------------------------------------------
+# Chrome / Chromium provisioning (desktop Linux only)
+# ---------------------------------------------------------------------------
 
 def ensure_chrome():
     # If already downloaded
@@ -65,6 +120,11 @@ def ensure_chrome():
     xbmc.log(f"[FlareSolverr] Chrome installed to {chrome_bin}", xbmc.LOGINFO)
     return chrome_bin
 
+
+# ---------------------------------------------------------------------------
+# Environment setup
+# ---------------------------------------------------------------------------
+
 def setup_flaresolverr_env():
     host = ADDON.getSetting('host') or '0.0.0.0'
     port = ADDON.getSetting('port') or '8191'
@@ -89,6 +149,11 @@ def setup_flaresolverr_env():
     import certifi
     os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
     os.environ["SSL_CERT_FILE"] = certifi.where()
+
+
+# ---------------------------------------------------------------------------
+# Local FlareSolverr server (desktop Linux / Windows / macOS)
+# ---------------------------------------------------------------------------
 
 def run_flaresolverr_server():
     import logging
@@ -211,6 +276,115 @@ def run_flaresolverr_server():
         logging.error(f"FlareSolverr Server Error: {str(e)}")
         xbmc.log(f"FlareSolverr Server Error: {str(e)}", xbmc.LOGFATAL)
 
+
+# ---------------------------------------------------------------------------
+# Remote delegation mode (Android / restricted platforms)
+# ---------------------------------------------------------------------------
+
+def run_remote_proxy_mode():
+    """
+    On Android (and other platforms without Chrome), the addon does NOT start
+    a local FlareSolverr server. Instead, it runs a lightweight HTTP reverse
+    proxy that forwards all requests to a user-configured remote FlareSolverr
+    instance. This lets consuming addons (Otaku, etc.) use the same
+    localhost:8191 endpoint regardless of platform.
+    """
+    import json
+    import logging
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from urllib.request import Request, urlopen
+    from urllib.error import URLError
+
+    remote_url = ADDON.getSetting('remote_url') or ''
+    if not remote_url.strip():
+        xbmc.log(
+            "[FlareSolverr] Android detected but no remote FlareSolverr URL configured. "
+            "Set one in Addon Settings -> General -> Remote FlareSolverr URL. "
+            "Example: http://192.168.1.100:8191",
+            xbmc.LOGWARNING,
+        )
+        return
+
+    remote_url = remote_url.rstrip('/')
+    local_host = ADDON.getSetting('host') or '0.0.0.0'
+    local_port = int(ADDON.getSetting('port') or '8191')
+
+    xbmc.log(
+        f"[FlareSolverr] Android remote proxy mode: localhost:{local_port} -> {remote_url}",
+        xbmc.LOGINFO,
+    )
+
+    class ProxyHandler(BaseHTTPRequestHandler):
+        """Forward every request to the remote FlareSolverr instance."""
+
+        def log_message(self, fmt, *args):
+            # Route HTTP server logs through Kodi's logger
+            xbmc.log(f"[FlareSolverr Proxy] {fmt % args}", xbmc.LOGDEBUG)
+
+        def _proxy(self):
+            target = remote_url + self.path
+            try:
+                body = None
+                content_length = int(self.headers.get('Content-Length', 0))
+                if content_length > 0:
+                    body = self.rfile.read(content_length)
+
+                req = Request(target, data=body, method=self.command)
+                # Forward relevant headers
+                for header in ('Content-Type', 'Accept', 'User-Agent'):
+                    val = self.headers.get(header)
+                    if val:
+                        req.add_header(header, val)
+
+                with urlopen(req, timeout=300) as resp:
+                    resp_body = resp.read()
+                    self.send_response(resp.status)
+                    for key, val in resp.getheaders():
+                        if key.lower() not in ('transfer-encoding', 'connection'):
+                            self.send_header(key, val)
+                    self.end_headers()
+                    self.wfile.write(resp_body)
+            except URLError as e:
+                error_msg = json.dumps({
+                    "status": "error",
+                    "message": f"Remote FlareSolverr unreachable: {e}",
+                    "solution": remote_url,
+                })
+                self.send_response(502)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(error_msg.encode('utf-8'))
+            except Exception as e:
+                error_msg = json.dumps({
+                    "status": "error",
+                    "message": f"Proxy error: {e}",
+                })
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(error_msg.encode('utf-8'))
+
+        def do_GET(self):
+            self._proxy()
+
+        def do_POST(self):
+            self._proxy()
+
+    try:
+        server = HTTPServer((local_host, local_port), ProxyHandler)
+        xbmc.log(
+            f"[FlareSolverr] Remote proxy listening on {local_host}:{local_port}",
+            xbmc.LOGINFO,
+        )
+        server.serve_forever()
+    except Exception as e:
+        xbmc.log(f"[FlareSolverr] Remote proxy error: {e}", xbmc.LOGFATAL)
+
+
+# ---------------------------------------------------------------------------
+# Session cleanup
+# ---------------------------------------------------------------------------
+
 def cleanup_sessions():
     try:
         import flaresolverr_service
@@ -220,21 +394,52 @@ def cleanup_sessions():
         for sid in session_ids:
             flaresolverr_service.SESSIONS_STORAGE.destroy(sid)
     except Exception as e:
+        import logging
         logging.error(f"Error cleaning up FlareSolverr sessions: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
     monitor = xbmc.Monitor()
-    
-    setup_flaresolverr_env()
-    
-    server_thread = threading.Thread(target=run_flaresolverr_server)
-    server_thread.daemon = True
-    server_thread.start()
-    
+
+    # Purge stale __pycache__ to prevent bytecache from a previous addon
+    # version from shadowing updated .py files.
+    purge_pycache(ADDON_PATH)
+
+    android = is_android()
+    # server_mode: 0 = auto, 1 = local, 2 = remote
+    # Kodi getSetting returns strings even for integer settings
+    try:
+        mode_int = int(ADDON.getSetting('server_mode') or '0')
+    except (ValueError, TypeError):
+        mode_int = 0
+
+    MODE_AUTO = 0
+    MODE_LOCAL = 1
+    MODE_REMOTE = 2
+
+    use_remote = (mode_int == MODE_REMOTE) or (mode_int == MODE_AUTO and android)
+
+    if use_remote:
+        xbmc.log("[FlareSolverr] Starting in REMOTE delegation mode", xbmc.LOGINFO)
+        server_thread = threading.Thread(target=run_remote_proxy_mode)
+        server_thread.daemon = True
+        server_thread.start()
+    else:
+        xbmc.log("[FlareSolverr] Starting in LOCAL server mode", xbmc.LOGINFO)
+        setup_flaresolverr_env()
+        server_thread = threading.Thread(target=run_flaresolverr_server)
+        server_thread.daemon = True
+        server_thread.start()
+
     while not monitor.abortRequested():
         if monitor.waitForAbort(1):
             break
-            
+
     import logging
     logging.info("FlareSolverr Service stopping...")
-    cleanup_sessions()
+    if not use_remote:
+        cleanup_sessions()

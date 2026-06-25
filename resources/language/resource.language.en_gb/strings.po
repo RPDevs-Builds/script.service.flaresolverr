@@ -53,3 +53,23 @@ msgstr "Warning"
 msgctxt "#30016"
 msgid "Error"
 msgstr "Error"
+
+msgctxt "#30017"
+msgid "Server Mode"
+msgstr "Server Mode"
+
+msgctxt "#30018"
+msgid "Auto (detect platform)"
+msgstr "Auto (detect platform)"
+
+msgctxt "#30019"
+msgid "Local Server"
+msgstr "Local Server"
+
+msgctxt "#30020"
+msgid "Remote Delegation"
+msgstr "Remote Delegation"
+
+msgctxt "#30021"
+msgid "Remote FlareSolverr URL"
+msgstr "Remote FlareSolverr URL"

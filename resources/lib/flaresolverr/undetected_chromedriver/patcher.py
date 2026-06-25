@@ -18,9 +18,13 @@ import time
 from urllib.request import urlopen
 from urllib.request import urlretrieve
 import zipfile
+# Android (and some restricted POSIX environments) lack sem_open, which causes
+# multiprocessing.Lock() to raise ImportError or OSError at class definition time.
+# Fall back to threading.Lock which is functionally equivalent for our use case
+# (single-process, multi-threaded addon inside Kodi).
 try:
     from multiprocessing import Lock
-except (ImportError, OSError):
+except (ImportError, OSError, ValueError):
     from threading import Lock
 
 
