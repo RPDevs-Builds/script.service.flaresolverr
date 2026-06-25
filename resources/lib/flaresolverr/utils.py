@@ -188,35 +188,7 @@ def get_webdriver(proxy: dict = None) -> WebDriver:
         # running inside Docker
         driver_exe_path = "/app/chromedriver"
     else:
-        # Determine profile directory or writable directory for Flatpak
-        try:
-            import xbmcaddon
-            import xbmcvfs
-            addon = xbmcaddon.Addon('script.service.flaresolverr')
-            profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
-        except Exception:
-            profile_dir = os.path.expanduser('~/.var/app/tv.kodi.Kodi/data/userdata/addon_data/script.service.flaresolverr')
-            if not os.path.exists(profile_dir):
-                profile_dir = os.path.expanduser('~')
-
-        data_path = os.path.join(profile_dir, "undetected_chromedriver")
-        os.makedirs(data_path, exist_ok=True)
-        
-        # Monkeypatch undetected_chromedriver's default data directory
-        uc.Patcher.data_path = os.path.abspath(data_path)
-        
-        try:
-            # Safely cast Chrome major version to int to avoid TypeErrors during Driver initialization
-            version_main = int(get_chrome_major_version())
-        except Exception:
-            version_main = None
-        
-        expected_driver = os.path.join(uc.Patcher.data_path, "chromedriver")
-        if not os.path.exists(expected_driver):
-            expected_driver = os.path.join(uc.Patcher.data_path, "undetected_chromedriver")
-            
-        if os.path.exists(expected_driver):
-            PATCHED_DRIVER_PATH = expected_driver
+        version_main = get_chrome_major_version()
         if PATCHED_DRIVER_PATH is not None:
             driver_exe_path = PATCHED_DRIVER_PATH
 
@@ -226,9 +198,6 @@ def get_webdriver(proxy: dict = None) -> WebDriver:
     # downloads and patches the chromedriver
     # if we don't set driver_executable_path it downloads, patches, and deletes the driver each time
     try:
-        # use_subprocess=True is CRITICAL in Kodi/Flatpak environments.
-        # It prevents the embedded Python interpreter from attempting to fork 'kodi.bin'
-        # via multiprocessing.Process, which hangs the addon indefinitely.
         driver = uc.Chrome(options=options, browser_executable_path=browser_executable_path,
                            driver_executable_path=driver_exe_path, version_main=version_main,
                            windows_headless=windows_headless, headless=get_config_headless())
