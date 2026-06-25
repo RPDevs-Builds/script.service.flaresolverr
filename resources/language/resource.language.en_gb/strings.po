@@ -17,3 +17,39 @@ msgstr ""
 msgctxt "#30003"
 msgid "Headless Browser"
 msgstr ""
+
+msgctxt "#30008"
+msgid "Advanced"
+msgstr "Advanced"
+
+msgctxt "#30009"
+msgid "Enable Debug Logging"
+msgstr "Enable Debug Logging"
+
+msgctxt "#30010"
+msgid "Enable Remote Log Viewer"
+msgstr "Enable Remote Log Viewer"
+
+msgctxt "#30011"
+msgid "Log Level"
+msgstr "Log Level"
+
+msgctxt "#30012"
+msgid "Log Folder"
+msgstr "Log Folder"
+
+msgctxt "#30013"
+msgid "Debug"
+msgstr "Debug"
+
+msgctxt "#30014"
+msgid "Info"
+msgstr "Info"
+
+msgctxt "#30015"
+msgid "Warning"
+msgstr "Warning"
+
+msgctxt "#30016"
+msgid "Error"
+msgstr "Error"

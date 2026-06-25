@@ -20,32 +20,32 @@
                 </setting>
             </group>
         </category>
-        <category id="2" label="Advanced">
-            <group id="1">
-                <setting id="enable_log" type="boolean" label="Enable Debug Logging">
+        <category id="advanced" label="30008">
+            <group id="1" label="30008">
+                <setting id="enable_log" type="boolean" label="30009">
                     <level>0</level>
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
-                <setting id="enable_remote_log_viewer" type="boolean" label="Enable Remote Log Viewer">
+                <setting id="enable_remote_log_viewer" type="boolean" label="30010">
                     <level>0</level>
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
-                <setting id="log_level" type="integer" label="Log Level">
+                <setting id="log_level" type="integer" label="30011">
                     <level>0</level>
                     <default>1</default>
                     <constraints>
                         <options>
-                            <option label="Debug">0</option>
-                            <option label="Info">1</option>
-                            <option label="Warning">2</option>
-                            <option label="Error">3</option>
+                            <option label="30013">0</option>
+                            <option label="30014">1</option>
+                            <option label="30015">2</option>
+                            <option label="30016">3</option>
                         </options>
                     </constraints>
                     <control type="list" format="integer"/>
                 </setting>
-                <setting id="log_path" type="path" label="Log Folder">
+                <setting id="log_path" type="path" label="30012">
                     <level>1</level>
                     <default>special://profile/addon_data/script.service.flaresolverr/</default>
                     <constraints>
