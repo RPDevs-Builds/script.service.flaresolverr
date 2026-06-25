@@ -4,19 +4,19 @@ msgstr ""
 
 msgctxt "#30000"
 msgid "General"
-msgstr ""
+msgstr "General"
 
 msgctxt "#30001"
 msgid "Host"
-msgstr ""
+msgstr "Host"
 
 msgctxt "#30002"
 msgid "Port"
-msgstr ""
+msgstr "Port"
 
 msgctxt "#30003"
 msgid "Headless Browser"
-msgstr ""
+msgstr "Headless Browser"
 
 msgctxt "#30008"
 msgid "Advanced"

@@ -177,7 +177,8 @@ def get_webdriver(proxy: dict = None) -> WebDriver:
         if os.name == 'nt':
             windows_headless = True
         else:
-            start_xvfb_display()
+            if not start_xvfb_display():
+                options.add_argument('--headless=new')
     # For normal headless mode:
     # options.add_argument('--headless')
 
@@ -188,7 +189,35 @@ def get_webdriver(proxy: dict = None) -> WebDriver:
         # running inside Docker
         driver_exe_path = "/app/chromedriver"
     else:
-        version_main = get_chrome_major_version()
+        # Determine profile directory or writable directory for Flatpak
+        try:
+            import xbmcaddon
+            import xbmcvfs
+            addon = xbmcaddon.Addon('script.service.flaresolverr')
+            profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+        except Exception:
+            profile_dir = os.path.expanduser('~/.var/app/tv.kodi.Kodi/data/userdata/addon_data/script.service.flaresolverr')
+            if not os.path.exists(profile_dir):
+                profile_dir = os.path.expanduser('~')
+
+        data_path = os.path.join(profile_dir, "undetected_chromedriver")
+        os.makedirs(data_path, exist_ok=True)
+        
+        # Monkeypatch undetected_chromedriver's default data directory
+        uc.Patcher.data_path = os.path.abspath(data_path)
+        
+        try:
+            version_main = int(get_chrome_major_version())
+        except Exception:
+            version_main = None
+        
+        expected_driver = os.path.join(uc.Patcher.data_path, "chromedriver")
+        if not os.path.exists(expected_driver):
+            expected_driver = os.path.join(uc.Patcher.data_path, "undetected_chromedriver")
+            
+        if os.path.exists(expected_driver):
+            PATCHED_DRIVER_PATH = expected_driver
+            
         if PATCHED_DRIVER_PATH is not None:
             driver_exe_path = PATCHED_DRIVER_PATH
 
@@ -200,7 +229,8 @@ def get_webdriver(proxy: dict = None) -> WebDriver:
     try:
         driver = uc.Chrome(options=options, browser_executable_path=browser_executable_path,
                            driver_executable_path=driver_exe_path, version_main=version_main,
-                           windows_headless=windows_headless, headless=get_config_headless())
+                           windows_headless=windows_headless, headless=get_config_headless(),
+                           use_subprocess=True)
     except Exception as e:
         logging.error("Error starting Chrome: %s" % e)
         # No point in continuing if we cannot retrieve the driver
@@ -211,6 +241,10 @@ def get_webdriver(proxy: dict = None) -> WebDriver:
         PATCHED_DRIVER_PATH = os.path.join(driver.patcher.data_path, driver.patcher.exe_name)
         if PATCHED_DRIVER_PATH != driver.patcher.executable_path:
             shutil.copy(driver.patcher.executable_path, PATCHED_DRIVER_PATH)
+            try:
+                os.chmod(PATCHED_DRIVER_PATH, 0o755)
+            except Exception:
+                pass
 
     # clean up proxy extension directory
     if proxy_extension_dir is not None:
@@ -335,12 +369,21 @@ def get_user_agent(driver=None) -> str:
             driver.quit()
 
 
-def start_xvfb_display():
+def start_xvfb_display() -> bool:
     global XVFB_DISPLAY
     if XVFB_DISPLAY is None:
-        from xvfbwrapper import Xvfb
-        XVFB_DISPLAY = Xvfb()
-        XVFB_DISPLAY.start()
+        if shutil.which('Xvfb') is None:
+            logging.warning("Xvfb not found. Falling back to native Chrome headless mode.")
+            return False
+        try:
+            from xvfbwrapper import Xvfb
+            XVFB_DISPLAY = Xvfb()
+            XVFB_DISPLAY.start()
+            return True
+        except Exception as e:
+            logging.warning(f"Failed to start Xvfb ({e}). Falling back to native Chrome headless mode.")
+            return False
+    return True
 
 
 def object_to_dict(_object):

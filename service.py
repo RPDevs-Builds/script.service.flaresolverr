@@ -24,6 +24,14 @@ def ensure_chrome():
     chrome_bin = os.path.join(chrome_dir, 'chrome')
     
     if os.path.exists(chrome_bin) and os.access(chrome_bin, os.X_OK):
+        # Even if already downloaded, make sure helper binaries are executable
+        for helper in ['chrome_crashpad_handler', 'chrome-wrapper', 'chrome_sandbox', 'xdg-mime', 'xdg-settings']:
+            helper_path = os.path.join(chrome_dir, helper)
+            if os.path.exists(helper_path) and not os.access(helper_path, os.X_OK):
+                try:
+                    os.chmod(helper_path, 0o755)
+                except Exception:
+                    pass
         return chrome_bin
         
     # Check system
@@ -45,9 +53,13 @@ def ensure_chrome():
         zip_ref.extractall(PROFILE_PATH)
         
     os.chmod(chrome_bin, 0o755)
-    crashpad = os.path.join(chrome_dir, 'crashpad_handler')
-    if os.path.exists(crashpad):
-        os.chmod(crashpad, 0o755)
+    for helper in ['chrome_crashpad_handler', 'chrome-wrapper', 'chrome_sandbox', 'xdg-mime', 'xdg-settings']:
+        helper_path = os.path.join(chrome_dir, helper)
+        if os.path.exists(helper_path):
+            try:
+                os.chmod(helper_path, 0o755)
+            except Exception:
+                pass
         
     os.remove(zip_path)
     xbmc.log(f"[FlareSolverr] Chrome installed to {chrome_bin}", xbmc.LOGINFO)

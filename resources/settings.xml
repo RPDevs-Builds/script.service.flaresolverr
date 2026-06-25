@@ -46,7 +46,7 @@
                     <control type="list" format="integer"/>
                 </setting>
                 <setting id="log_path" type="path" label="30012">
-                    <level>1</level>
+                    <level>0</level>
                     <default>special://profile/addon_data/script.service.flaresolverr/</default>
                     <constraints>
                         <allowempty>true</allowempty>
