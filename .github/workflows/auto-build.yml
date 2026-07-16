@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   sync-and-build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux64]
     steps:
       - name: Checkout addon repository
         uses: actions/checkout@v4
